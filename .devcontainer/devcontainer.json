@@ -9,6 +9,7 @@
     // concern: use the Docker Desktop UI or run `docker model pull ai/...`
     // in a HOST shell.
     "ghcr.io/devcontainers/features/copilot-cli:latest": {},
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   // Environment for every shell and the Copilot CLI process. Copilot CLI is
@@ -24,11 +25,26 @@
   // (and adding one would override Docker Desktop's interception and break
   // the connection).
   "containerEnv": {
+    // --- GitHub Copilot CLI → DMR OpenAI-compatible endpoint ---
     "COPILOT_PROVIDER_BASE_URL": "http://model-runner.docker.internal/engines/v1",
     "COPILOT_PROVIDER_TYPE": "openai",
     "COPILOT_MODEL": "ai/gpt-oss",
     "COPILOT_PROVIDER_API_KEY": "not-needed",
-    "COPILOT_OFFLINE": "true"
+    "COPILOT_OFFLINE": "true",
+
+    // --- Claude Code → DMR Anthropic-compatible endpoint ---
+    // DMR serves /anthropic/v1/messages; Claude Code appends /v1/messages to
+    // ANTHROPIC_BASE_URL itself, so we point at the /anthropic root (no /v1).
+    // ANTHROPIC_AUTH_TOKEN is sent as Authorization: Bearer …; DMR ignores it
+    // but Claude Code requires it to be set so it skips the Anthropic login
+    // flow. DISABLE_AUTOUPDATER + CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC
+    // mirror the offline posture of COPILOT_OFFLINE=true.
+    "ANTHROPIC_BASE_URL": "http://model-runner.docker.internal/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "not-needed",
+    "ANTHROPIC_MODEL": "ai/gpt-oss",
+    "ANTHROPIC_SMALL_FAST_MODEL": "ai/gpt-oss",
+    "DISABLE_AUTOUPDATER": "1",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "remoteUser": "node"

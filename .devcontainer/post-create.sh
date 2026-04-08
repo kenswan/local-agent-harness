@@ -10,6 +10,8 @@ set -u
 
 DMR_URL="${COPILOT_PROVIDER_BASE_URL:-http://model-runner.docker.internal/engines/v1}"
 MODEL="${COPILOT_MODEL:-ai/gpt-oss}"
+ANTHROPIC_URL="${ANTHROPIC_BASE_URL:-http://model-runner.docker.internal/anthropic}"
+ANTHROPIC_MODEL_NAME="${ANTHROPIC_MODEL:-ai/gpt-oss}"
 
 hr() { printf '\n\033[1;34m== %s ==\033[0m\n' "$*"; }
 ok() { printf '  \033[32m✓\033[0m %s\n' "$*"; }
@@ -66,6 +68,32 @@ else
   warn "will pick it up automatically."
 fi
 
+hr "Probing DMR Anthropic endpoint at ${ANTHROPIC_URL}/v1/messages/count_tokens"
+# Cheap probe: count_tokens does no generation. If DMR's Anthropic shim
+# doesn't support it, fall back to a 1-token messages call.
+anthropic_ok=0
+if curl -fsS -X POST "${ANTHROPIC_URL}/v1/messages/count_tokens" \
+     -H 'content-type: application/json' \
+     -H 'anthropic-version: 2023-06-01' \
+     -d "{\"model\":\"${ANTHROPIC_MODEL_NAME}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" \
+     -o /tmp/dmr-anthropic.json 2>/dev/null; then
+  anthropic_ok=1
+elif curl -fsS -X POST "${ANTHROPIC_URL}/v1/messages" \
+     -H 'content-type: application/json' \
+     -H 'anthropic-version: 2023-06-01' \
+     -d "{\"model\":\"${ANTHROPIC_MODEL_NAME}\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" \
+     -o /tmp/dmr-anthropic.json 2>/dev/null; then
+  anthropic_ok=1
+fi
+
+if [ "${anthropic_ok}" -eq 1 ]; then
+  ok "Anthropic endpoint responded"
+else
+  err "Anthropic endpoint probe failed"
+  warn "Claude Code may not work. Confirm DMR exposes /anthropic/v1/messages on this host"
+  warn "and that ${ANTHROPIC_MODEL_NAME} is loaded."
+fi
+
 hr "Next steps"
 cat <<EOF
   • COPILOT_OFFLINE is set to 'true' in this container, which fully isolates
@@ -82,6 +110,14 @@ cat <<EOF
 
       copilot                       # uses COPILOT_MODEL=${MODEL}
       copilot --model ${MODEL}      # explicit override
+
+  • Launch Claude Code against the local model:
+
+      claude                        # uses ANTHROPIC_MODEL=${ANTHROPIC_MODEL_NAME}
+      claude --model ${ANTHROPIC_MODEL_NAME}
+
+    No /login is required — ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN
+    bypass Anthropic's auth flow entirely.
 
   • Manage models from the HOST (Docker Desktop UI or host shell):
 
