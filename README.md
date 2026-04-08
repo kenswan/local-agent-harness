@@ -160,3 +160,8 @@ custom endpoint, add them to `containerEnv`, and (if available) add an
 official devcontainer feature for the install. Most agent CLIs accept either
 an OpenAI-compatible or Anthropic-compatible base URL, so DMR can serve them
 without any extra translation layer.
+
+## Model Provider References
+
+- [Copilot CLI now supports BYOK and local models](https://github.blog/changelog/2026-04-07-copilot-cli-now-supports-byok-and-local-models/)
+- [Run Claude Code locally with Docker Model Runner](https://www.docker.com/blog/run-claude-code-locally-docker-model-runner/)
