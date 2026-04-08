@@ -142,16 +142,75 @@ Model management is intentionally a host-side concern. The standalone
 `docker model` CLI plugin would conflict with Docker Desktop's DMR if run
 inside the container, so the container talks to DMR purely over HTTP.
 
+## Alternative backend: llama.cpp inside the container
+
+If DMR is unavailable on your machine — or you just want to try a different
+GGUF without rebuilding — there's an opt-in second backend that runs
+[llama.cpp's `llama-server`](https://github.com/ggml-org/llama.cpp/tree/master/tools/server)
+**inside the devcontainer**. It serves the OpenAI Chat Completions API and
+the [Anthropic Messages API](https://huggingface.co/blog/ggml-org/anthropic-messages-api-in-llamacpp)
+on the same port, so a single process replaces DMR's dual-shim role with no
+proxy layer.
+
+DMR is still the default and recommended path. llama.cpp is the escape hatch.
+
+### Activating it
+
+From inside the running container:
+
+```sh
+source scripts/use-llama-cpp.sh
+```
+
+`source` is required (not just running it) so the env-var overrides land in
+your current shell. The script:
+
+1. Detects the architecture and downloads a prebuilt `llama-server` release
+   on first run (cached under `.llama-cache/`).
+2. Downloads the chosen GGUF on first run via `llama-server -hf` (also
+   cached under `.llama-cache/`).
+3. Starts the server in the background on `127.0.0.1:8080` and waits for
+   `/health`.
+4. Exports `COPILOT_PROVIDER_BASE_URL` / `ANTHROPIC_BASE_URL` overrides
+   pointing at the local server.
+
+After it finishes, `claude` and `copilot` in **this shell** talk to
+llama-server. Open a new terminal (or `unset` the overrides) to go back to DMR.
+
+Override the model with `LLAMA_MODEL` before sourcing:
+
+```sh
+LLAMA_MODEL=unsloth/gemma-4-E2B-it-GGUF \
+  source scripts/use-llama-cpp.sh
+```
+
+### Persistent cache
+
+`.llama-cache/` on the host is bind-mounted into the container at
+`/home/node/.llama-cache` and is in `.gitignore`. The `llama-server` binary
+and downloaded GGUFs live there, so subsequent container rebuilds reuse the
+cache instead of re-downloading multi-GB blobs.
+
+### ⚠️ Performance caveat
+
+This server runs **CPU-only**. Docker Desktop does not pass GPU/Metal through
+to Linux containers on macOS, so throughput will be much lower than DMR
+(which runs natively on the host with Metal/CUDA acceleration). Use this
+backend for portability and experimentation, not for raw speed.
+
 ## Layout
 
 ```
 .devcontainer/
-├── devcontainer.json   # base image, features, env vars
-└── post-create.sh      # probes DMR + prints launch hints
+└── devcontainer.json   # base image, features, env vars, llama-cache mount
+scripts/
+├── post-create.sh      # probes DMR + prints launch hints (runs on container create)
+└── use-llama-cpp.sh    # opt-in: switch to local llama.cpp backend
 ```
 
 No Dockerfile, no docker-compose — the entire harness setup is one
-`devcontainer.json` plus a verification script.
+`devcontainer.json` plus a verification script and an optional activation
+script.
 
 ## Adding more harnesses
 

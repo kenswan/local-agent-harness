@@ -1,6 +1,9 @@
 {
   "name": "local-agent-harness",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:22-bookworm",
+  // Trixie (Debian 13) ships glibc 2.41, which is required by the prebuilt
+  // llama.cpp release binaries used by scripts/use-llama-cpp.sh. Bookworm's
+  // glibc 2.36 is too old (the prebuilts need GLIBC_2.38 + GLIBCXX_3.4.32).
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22-trixie",
   "features": {
     // We deliberately do NOT install docker-outside-of-docker here. The
     // container only consumes DMR over HTTP at model-runner.docker.internal,
@@ -46,6 +49,15 @@
     "DISABLE_AUTOUPDATER": "1",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
   },
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  // Persistent, gitignored cache for the optional llama.cpp backend (see
+  // scripts/use-llama-cpp.sh). The bind target lives in the node user's
+  // home so the activation script can write to it without sudo, and survives
+  // container rebuilds because the source is on the host. The host-side
+  // directory must exist before the container starts, hence initializeCommand.
+  "initializeCommand": "mkdir -p ${localWorkspaceFolder}/.llama-cache",
+  "mounts": [
+    "source=${localWorkspaceFolder}/.llama-cache,target=/home/node/.llama-cache,type=bind,consistency=cached"
+  ],
+  "postCreateCommand": "bash scripts/post-create.sh",
   "remoteUser": "node"
 }
