@@ -39,7 +39,31 @@ Command: `curl -fsSL https://claude.ai/install.sh | bash`
 ## 3. Start Claude Code
 
 ### Host
-`ANTHROPIC_BASE_URL=http://localhost:12434 ANTHROPIC_AUTH_TOKEN=not-needed ANTHROPIC_MODEL=gpt-oss claude`
+```bash 
+ANTHROPIC_BASE_URL=http://localhost:12434 \
+ANTHROPIC_AUTH_TOKEN=not-needed \
+ANTHROPIC_MODEL=docker.io/ai/gemma4:26B \
+ANTHROPIC_SMALL_FAST_MODEL=docker.io/ai/gemma4:26B \
+DISABLE_AUTOUPDATER=1 \
+CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
+claude
+````
 
 ### Container
-`ANTHROPIC_BASE_URL=http://model-runner.docker.internal ANTHROPIC_AUTH_TOKEN=not-needed ANTHROPIC_MODEL=gpt-oss claude`
+```bash 
+ANTHROPIC_BASE_URL=http://model-runner.docker.internal \
+ANTHROPIC_AUTH_TOKEN=not-needed \
+ANTHROPIC_MODEL=docker.io/ai/gemma4:26B \
+ANTHROPIC_SMALL_FAST_MODEL=docker.io/ai/gemma4:26B \
+DISABLE_AUTOUPDATER=1 \
+CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
+claude
+````
+
+## 4. Add Web Search
+
+### Install Playwright
+`npx -y playwright install chromium --with-deps`
+
+### Install Playwright MCP
+`claude mcp add playwright -- npx -y @playwright/mcp --browser chromium`
