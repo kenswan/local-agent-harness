@@ -1,4 +1,4 @@
-# Local Open Source Agent
+# Claude Open Source
 
 ## Requirements
 
